@@ -15,9 +15,13 @@ const ALLOWED_ORIGINS = [
 
 const app = express();
 app.use(cors({
+  // Deny via cb(null, false) rather than cb(new Error(...)) — passing an
+  // Error here routes a disallowed-origin preflight into Express's error
+  // path, which crashed the process in production (see deploy crash from
+  // an OPTIONS request with a bad Origin). A plain false just omits the
+  // CORS headers, which the browser enforces on its own, with no error path.
   origin: (origin, cb) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
+    cb(null, !origin || ALLOWED_ORIGINS.includes(origin));
   }
 }));
 app.use(express.json());
@@ -96,5 +100,10 @@ app.get('/api/activity', requireAuth, (req, res) => {
     history: user.loginActivity.slice(-20).reverse()
   });
 });
+
+// Log and keep serving rather than crashing the whole process (and every
+// logged-in session with it) over one bad request or a stray rejection.
+process.on('uncaughtException', err => console.error('uncaughtException:', err));
+process.on('unhandledRejection', err => console.error('unhandledRejection:', err));
 
 app.listen(PORT, () => console.log('pixeldeck-auth listening on ' + PORT));
