@@ -7,8 +7,19 @@ const db = require('./db');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const PORT = process.env.PORT || 3002;
 
+const ALLOWED_ORIGINS = [
+  'https://shoaibul0926.github.io',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+];
+
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  }
+}));
 app.use(express.json());
 
 function makeToken(user) {
